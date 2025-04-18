@@ -37,7 +37,7 @@ fn main() {
 
     .get_matches();
     
-    // We dont want to put aside while calculating and sending the time
+    // We dont want to mis something today
     enter_critical_mode();
 
     // Get parser values
@@ -62,22 +62,23 @@ fn main() {
     println!("Starting packet handler");
     io::stdout().flush().unwrap();
     
+    // Create new MRP instance
     let mut mrp = MrpFrame::new();
     
     match datalink::channel(&interface, Default::default()) {
         Ok(Ethernet(_tx, mut rx)) => {
             loop {
-                // Try to get a packet
+                // Catch a packet
                 match rx.next() {
                     Ok(packet) => {
                         if let Some(eth) = EthernetPacket::new(packet) {
                             if eth.get_ethertype().0 == 0x88e3 {
  
-                                // decode MRP frame
+                                // Decode MRP frame
                                 let payload = eth.payload();
                                 mrp.decode_mrp_frame(payload);
 
-                                // check if we have to print the test frames
+                                // Check if we have to print the test frames
                                 if print_all {
                                     println!("{}", mrp);
                                 } else {
@@ -93,7 +94,6 @@ fn main() {
                     }
                     Err(e) => {
                         eprintln!("⚠️ Error reading packet: {}", e);
-                        // or handle it as you like
                     }
                 }
 
