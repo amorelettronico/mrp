@@ -9,10 +9,6 @@ use clap::{Arg, Command};
 use pnet::datalink::{self, Channel::Ethernet};
 use pnet::packet::{ethernet::EthernetPacket, Packet};
 
-use pnet::packet::ethernet::EtherType;
-use pnet::packet::ethernet::MutableEthernetPacket;
-use pnet::packet::MutablePacket;
-
 use mrp::{MrpFrame, MrpMessageType};
 
 fn main() {
@@ -30,16 +26,7 @@ fn main() {
             .help("IP address or MAC address of the interface to listen on"),
     )
 
-    // fault filter
-    .arg(
-        Arg::new("spoof")
-            .short('s')
-            .long("spoof")
-            .help("Send spoof frames")
-            .action(clap::ArgAction::SetTrue),
-    )
-
-    // fault filter
+    // Show all mrp frames or discard test frames
     .arg(
         Arg::new("all")
             .short('a')
@@ -56,8 +43,7 @@ fn main() {
     // Get parser values
     let interface_name = matches.get_one::<String>("interface").unwrap();
     let print_all = matches.get_flag("all");
-    let spoof = matches.get_flag("spoof");
-
+   
     // Get interface
     let interfaces = datalink::interfaces();
     let interface = interfaces.into_iter().find(|iface| {
@@ -77,24 +63,9 @@ fn main() {
     io::stdout().flush().unwrap();
     
     let mut mrp = MrpFrame::new();
-
-    // ethernet frame
-    let tst_mac = [0x01, 0x15, 0x4e, 0x00, 0x00, 0x01]; // MRP topology change/linkupdown multicast mac
-    let dst_mac = [0x01, 0x15, 0x4e, 0x00, 0x00, 0x02]; // MRP test frame multicast mac
-
-    let mut src_mac = mrp.sa;
-
-    // Prepare raw Ethernet frame buffer
-    let mut buffer = [0u8; 60];
-    let mut spoof_frame = MutableEthernetPacket::new(&mut buffer).unwrap();
-
-    // construct ethernet frame
-    spoof_frame.set_destination(dst_mac.into());
-    spoof_frame.set_source(src_mac.into());
-    spoof_frame.set_ethertype(EtherType(0x88e3));
     
     match datalink::channel(&interface, Default::default()) {
-        Ok(Ethernet(mut tx, mut rx)) => {
+        Ok(Ethernet(_tx, mut rx)) => {
             loop {
                 // Try to get a packet
                 match rx.next() {
@@ -135,17 +106,19 @@ fn main() {
 }
 
 fn enter_critical_mode() {
-    // Set the process priority to real-time
-    if SetPriorityClass(GetCurrentProcess(), REALTIME_PRIORITY_CLASS).is_err() {
-        eprintln!("⚠️ Failed to set process priority to real-time.");
-    }
+    unsafe {
+        // Set the process priority to real-time
+        if SetPriorityClass(GetCurrentProcess(), REALTIME_PRIORITY_CLASS).is_err() {
+            eprintln!("⚠️ Failed to set process priority to real-time.");
+        }
 
-    // Set the thread priority to time-critical
-    if SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST).is_err() {
-        eprintln!("⚠️ Failed to set thread priority to time-critical.");
-    }
+        // Set the thread priority to time-critical
+        if SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST).is_err() {
+            eprintln!("⚠️ Failed to set thread priority to time-critical.");
+        }
 
-    println!("🚀 Entered priority mode.");
+        println!("🚀 Entered priority mode.");
+    }
 }
 
 fn normalize_mac(mac: String) -> String {
