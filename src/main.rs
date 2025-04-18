@@ -135,19 +135,17 @@ fn main() {
 }
 
 fn enter_critical_mode() {
-    unsafe {
-        // Set the process priority to real-time
-        if SetPriorityClass(GetCurrentProcess(), REALTIME_PRIORITY_CLASS).is_err() {
-            eprintln!("⚠️ Failed to set process priority to real-time.");
-        }
-
-        // Set the thread priority to time-critical
-        if SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST).is_err() {
-            eprintln!("⚠️ Failed to set thread priority to time-critical.");
-        }
-
-        println!("🚀 Entered priority mode.");
+    // Set the process priority to real-time
+    if SetPriorityClass(GetCurrentProcess(), REALTIME_PRIORITY_CLASS).is_err() {
+        eprintln!("⚠️ Failed to set process priority to real-time.");
     }
+
+    // Set the thread priority to time-critical
+    if SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST).is_err() {
+        eprintln!("⚠️ Failed to set thread priority to time-critical.");
+    }
+
+    println!("🚀 Entered priority mode.");
 }
 
 fn normalize_mac(mac: String) -> String {
